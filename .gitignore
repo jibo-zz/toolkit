@@ -1,6 +1,7 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
+# ==========================================
+# Go-specific ignores
+# ==========================================
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
@@ -11,22 +12,69 @@
 # Test binary, built with `go test -c`
 *.test
 
-# Code coverage profiles and other test artifacts
+# Output of the go coverage tool
 *.out
-coverage.*
-*.coverprofile
-profile.cov
+*.prof
+coverage.txt
+coverage.html
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+# Compiled Object files, Static and Dynamic libs (Shared Objects)
+*.o
+*.a
+*.cgo1.go
+*.cgo2.c
+_cgo_defun.c
+_cgo_gotypes.go
+_cgo_export.*
+_testmain.go
 
-# Go workspace file
+# Standard output directories
+_obj/
+_test/
+bin/
+build/
+dist/
+out/
+
+# Dependency directories (often ignored if relying entirely on go.mod)
+vendor/
+
+# Go workspace files (usually local only)
 go.work
 go.work.sum
 
-# env file
+# ==========================================
+# Environment / Secrets
+# ==========================================
 .env
+.env.local
+*.pem
 
-# Editor/IDE
-# .idea/
-# .vscode/
+# ==========================================
+# OS / IDE specific
+# ==========================================
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# JetBrains / GoLand
+.idea/
+*.iml
+
+# Vim
+*.swp
+*.swo
+
+# Ignore all files inside any directory named 'uploads'
+**/uploads/*
+
+# Exception: Do not ignore the hidden .gitkeep file
+!**/uploads/.gitkeep
+
+test.jpeg
