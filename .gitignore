@@ -77,4 +77,5 @@ Thumbs.db
 # Exception: Do not ignore the hidden .gitkeep file
 !**/uploads/.gitkeep
 
-test.jpeg
+# Ignore specific test data files
+testdata/test.jpeg
