@@ -79,3 +79,4 @@ Thumbs.db
 
 # Ignore specific test data files
 testdata/test.jpeg
+testdata/dog.jpg
