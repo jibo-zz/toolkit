@@ -1,6 +1,9 @@
 package toolkit
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -251,5 +254,172 @@ func TestTools_DownloadStaticFile(t *testing.T) {
 	_, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Error("error reading response body")
+	}
+}
+
+var jsonTests = []struct {
+	name          string
+	json          string
+	errorExpected bool
+	maxSize       int64
+	allowUnknown  bool
+}{
+	{
+		name:          "valid JSON",
+		json:          `{"name": "Miro", "age": 40}`,
+		errorExpected: false,
+		maxSize:       1024,
+		allowUnknown:  false,
+	},
+	{
+		name:          "badly formed JSON",
+		json:          `{"name":, "age":}`,
+		errorExpected: true,
+		maxSize:       1024,
+		allowUnknown:  false,
+	},
+	{
+		name:          "incorrect JSON type",
+		json:          `{"name": "Miro", "age": "forty"}`,
+		errorExpected: true,
+		maxSize:       1024,
+		allowUnknown:  false,
+	},
+	{
+		name:          "two JSON values",
+		json:          `{"name": "Miro", "age": 40}{"name": "Miro", "age": 40}`,
+		errorExpected: true,
+		maxSize:       1024,
+		allowUnknown:  false,
+	},
+	{
+		name:          "empty body",
+		json:          ``,
+		errorExpected: true,
+		maxSize:       1024,
+		allowUnknown:  false,
+	},
+	{
+		name:          "syntax error in JSON",
+		json:          `{"name": "Miro", "age": 40`,
+		errorExpected: true,
+		maxSize:       1024,
+		allowUnknown:  false,
+	},
+	{
+		name:          "unknown field in JSON",
+		json:          `{"name": "Miro", "age": 40, "location": "Earth"}`,
+		errorExpected: true,
+		maxSize:       1024,
+		allowUnknown:  false,
+	},
+	{
+		name:          "unknown field allowed in JSON",
+		json:          `{"name": "Miro", "age": 40, "location": "Earth"}`,
+		errorExpected: false,
+		maxSize:       1024,
+		allowUnknown:  true,
+	},
+	{
+		name:          "missing field name",
+		json:          `{"name": "Miro", "age": 40, "": "Earth"}`,
+		errorExpected: false,
+		maxSize:       1024,
+		allowUnknown:  true,
+	},
+	{
+		name:          "JSON body too large",
+		json:          `{"name": "Miro", "age": 40, "location": "Earth"}`,
+		errorExpected: true,
+		maxSize:       10,
+		allowUnknown:  false,
+	},
+	{
+		name:          "not JSON body",
+		json:          `name=Miro&age=40`,
+		errorExpected: true,
+		maxSize:       1024,
+		allowUnknown:  false,
+	},
+}
+
+func TestTools_ReadJSON(t *testing.T) {
+	var testTools Tools
+
+	for _, e := range jsonTests {
+		testTools.MaxJSONSize = e.maxSize
+		testTools.AllowUnknownFields = e.allowUnknown
+
+		var decodedJSON struct {
+			Name string `json:"name"`
+			Age  int    `json:"age"`
+		}
+
+		req, err := http.NewRequest("POST", "/", bytes.NewReader([]byte(e.json)))
+		if err != nil {
+			t.Log("Error:", err)
+		}
+
+		rr := httptest.NewRecorder()
+
+		err = testTools.ReadJSON(rr, req, &decodedJSON)
+
+		if e.errorExpected && err == nil {
+			t.Errorf("%s: Expected error but got none", e.name)
+		}
+
+		if !e.errorExpected {
+			if decodedJSON.Name != "Miro" {
+				t.Errorf("%s: Expected name 'Miro' but got '%s'", e.name, decodedJSON.Name)
+			}
+			if decodedJSON.Age != 40 {
+				t.Errorf("%s: Expected age 40 but got %d", e.name, decodedJSON.Age)
+			}
+		}
+
+		req.Body.Close()
+	}
+}
+
+func TestTools_WriteJSON(t *testing.T) {
+	var testTools Tools
+
+	rr := httptest.NewRecorder()
+	payload := JSONResponse{
+		Error:   false,
+		Message: "Success",
+	}
+
+	headers := make(http.Header)
+	headers.Add("X-Custom-Header", "CustomValue")
+
+	err := testTools.WriteJSON(rr, http.StatusOK, payload, headers)
+	if err != nil {
+		t.Errorf("Failed to write JSON response: %v", err)
+	}
+}
+
+func TestTools_ErrorJSON(t *testing.T) {
+	var testTools Tools
+
+	rr := httptest.NewRecorder()
+	err := testTools.ErrorJSON(rr, errors.New("This is an error"), http.StatusServiceUnavailable)
+	if err != nil {
+		t.Errorf("Failed to write JSON error response: %v", err)
+	}
+
+	var payload JSONResponse
+	decoder := json.NewDecoder(rr.Body)
+	err = decoder.Decode(&payload)
+	if err != nil {
+		t.Errorf("Failed to decode JSON error response: %v", err)
+	}
+
+	if !payload.Error {
+		t.Errorf("Expected error field to be true, got false")
+	}
+
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("Expected status code %d, got %d", http.StatusServiceUnavailable, rr.Code)
 	}
 }
